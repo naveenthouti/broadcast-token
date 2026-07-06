@@ -119,6 +119,50 @@ broadcast-token/
 
 ## 🔑 How It Works
 
+### Leader-Follower Pattern for Token Sharing
+
+This implementation uses a **Leader-Follower pattern** to efficiently manage token synchronization across multiple browser tabs:
+
+#### How the Pattern Works
+
+1. **Leader Tab (Active Tab)**
+   - The tab where the user performs the login action becomes the "leader"
+   - Leader tab makes actual API calls to the authentication server
+   - Leader tab stores tokens in localStorage
+   - Leader tab broadcasts token changes to all other tabs via Broadcast Channel
+   - Leader tab handles token refresh operations
+
+2. **Follower Tabs (Passive Tabs)**
+   - All other tabs act as "followers"
+   - Followers listen to the Broadcast Channel for token events
+   - Followers update their local state when they receive events
+   - Followers do NOT make API calls for token operations
+   - Followers rely on the leader to handle authentication
+
+#### Benefits of Leader-Follower Pattern
+
+- **Reduced API Calls**: Only one tab makes authentication API calls, reducing server load
+- **Consistency**: All tabs stay synchronized through a single source of truth
+- **Race Condition Prevention**: Prevents multiple tabs from trying to refresh tokens simultaneously
+- **Efficiency**: Followers get instant updates without network latency
+- **Reliability**: If the leader tab is closed, another tab can take over leadership
+
+#### Event Flow
+
+```
+User Action (Leader Tab)
+    ↓
+API Call to Server
+    ↓
+Store Token in localStorage
+    ↓
+Broadcast Event via Channel
+    ↓
+All Follower Tabs Receive Event
+    ↓
+Followers Update Local State
+```
+
 ### Token Service
 The `tokenService` manages authentication tokens and uses the Broadcast Channel API to sync them across tabs:
 
