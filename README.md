@@ -119,49 +119,77 @@ broadcast-token/
 
 ## 🔑 How It Works
 
-### Leader-Follower Pattern for Token Sharing
+### Enterprise Multi-Tab Token Sharing
 
-This implementation uses a **Leader-Follower pattern** to efficiently manage token synchronization across multiple browser tabs:
+In enterprise applications, users frequently open the same application in multiple browser tabs to work on different tasks simultaneously. This creates a critical challenge: **how to keep authentication tokens synchronized across all tabs without overwhelming the authentication server.**
 
-#### How the Pattern Works
+#### The Enterprise Challenge
+
+When a user opens an enterprise application in multiple tabs:
+
+1. **Each tab independently manages authentication** - Without synchronization, each tab would need to handle login, token refresh, and logout separately
+2. **Excessive API calls** - Multiple tabs making simultaneous token refresh requests can overwhelm the authentication server
+3. **Inconsistent user experience** - Users might be logged out in one tab while still active in another
+4. **Race conditions** - Multiple tabs trying to refresh tokens simultaneously can cause conflicts
+5. **Security risks** - Stale tokens in some tabs while others have fresh tokens can lead to unauthorized access attempts
+
+#### Solution: Leader-Follower Pattern
+
+This implementation uses a **Leader-Follower pattern** to efficiently manage token synchronization across multiple browser tabs in enterprise environments:
+
+##### How the Pattern Works
 
 1. **Leader Tab (Active Tab)**
    - The tab where the user performs the login action becomes the "leader"
    - Leader tab makes actual API calls to the authentication server
-   - Leader tab stores tokens in localStorage
-   - Leader tab broadcasts token changes to all other tabs via Broadcast Channel
-   - Leader tab handles token refresh operations
+   - Leader tab stores tokens in localStorage for persistence
+   - Leader tab broadcasts token changes to all other tabs via Broadcast Channel API
+   - Leader tab handles all token refresh operations
+   - Leader tab is the single source of truth for authentication state
 
 2. **Follower Tabs (Passive Tabs)**
    - All other tabs act as "followers"
    - Followers listen to the Broadcast Channel for token events
-   - Followers update their local state when they receive events
-   - Followers do NOT make API calls for token operations
-   - Followers rely on the leader to handle authentication
+   - Followers update their local state immediately when they receive events
+   - Followers do NOT make API calls for token operations (login, refresh, logout)
+   - Followers rely entirely on the leader tab to handle authentication
+   - Followers maintain read-only access to the shared authentication state
 
-#### Benefits of Leader-Follower Pattern
+##### Enterprise Benefits of Leader-Follower Pattern
 
-- **Reduced API Calls**: Only one tab makes authentication API calls, reducing server load
-- **Consistency**: All tabs stay synchronized through a single source of truth
-- **Race Condition Prevention**: Prevents multiple tabs from trying to refresh tokens simultaneously
-- **Efficiency**: Followers get instant updates without network latency
-- **Reliability**: If the leader tab is closed, another tab can take over leadership
+- **Reduced Server Load**: Only one tab makes authentication API calls, dramatically reducing server load in enterprise environments with thousands of users
+- **Consistency**: All tabs stay synchronized through a single source of truth, ensuring consistent user experience
+- **Race Condition Prevention**: Prevents multiple tabs from trying to refresh tokens simultaneously, eliminating conflicts
+- **Efficiency**: Followers get instant updates without network latency, improving perceived performance
+- **Reliability**: If the leader tab is closed, another tab can automatically take over leadership
+- **Security**: Centralized token management reduces the risk of token leakage or inconsistent security states
+- **Scalability**: The pattern scales efficiently as users open more tabs without linearly increasing API calls
 
-#### Event Flow
+##### Event Flow in Enterprise Context
 
 ```
 User Action (Leader Tab)
     ↓
-API Call to Server
+API Call to Auth Server (Single Call)
     ↓
-Store Token in localStorage
+Store Token in localStorage (Persistent Storage)
     ↓
-Broadcast Event via Channel
+Broadcast Event via Channel Browser API
     ↓
-All Follower Tabs Receive Event
+All Follower Tabs Receive Event (Instant Sync)
     ↓
-Followers Update Local State
+Followers Update Local State (No API Calls)
+    ↓
+Consistent Authentication State Across All Tabs
 ```
+
+##### Real-World Enterprise Use Cases
+
+1. **Dashboard Applications**: Users open multiple dashboard tabs for different metrics - all tabs stay authenticated
+2. **CRM Systems**: Sales representatives work on multiple customer records simultaneously - seamless authentication
+3. **Project Management**: Team members have multiple project tabs open - consistent access across all
+4. **Financial Applications**: Traders monitor multiple markets - authentication persists across all tabs
+5. **Healthcare Systems**: Doctors access patient records in different tabs - secure, synchronized access
 
 ### Token Service
 The `tokenService` manages authentication tokens and uses the Broadcast Channel API to sync them across tabs:
